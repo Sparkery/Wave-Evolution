@@ -1,0 +1,61 @@
+QQ = 10;
+
+NN = 500;
+
+lowerBound = 0;
+
+upperBound = 0;
+
+z = Table[Table[Sin[i/k], {i, QQ}], {k, QQ}];
+
+zprev = z;
+
+v = Table[Table[0, {QQ}], {QQ}];
+
+pictures = Table[0, {NN}];
+
+vprev = v;
+
+deltaT = 0.1;
+
+average = Compile[{w, x, y, z}, 0.25*(w + x + y + z)];
+
+acceleration = Compile[{v, w, x, y, z}, -(v - 0.25*(w + x + y + z))];
+
+velocity = Compile[{x, y}, x + y*deltaT];
+
+evolveList[
+   prev_] := (For[i = 1, i <= Length[prev], i++, 
+    For[k = 1, k <= Length[prev], k++, 
+     If[i == 1 || k == 1 || i == Length[prev] || 
+       k == Length[prev], (zprev[[i]][[k]] = 0; 
+       vprev[[i]][[k]] = 0;), (acc = 
+        acceleration[prev[[i]][[k]], prev[[i - 1]][[k]], 
+         prev[[i + 1]][[k]], prev[[i]][[k - 1]], prev[[i]][[k + 1]]]; 
+       vprev[[i]][[k]] = velocity[vprev[[i]][[k]], acc]; 
+       zprev[[i]][[k]] += vprev[[i]][[k]]*deltaT; 
+       If[zprev[[i]][[k]] > upperBound, upperBound = zprev[[i]][[k]]];
+        If[zprev[[i]][[k]] < lowerBound, 
+        lowerBound = zprev[[i]][[k]]];)]]];
+   (v = vprev; z = zprev;););
+
+evolution = Table[0, {NN}];
+
+evolution[[1]] = z;
+
+For[a = 2, a <= NN, a++,
+ 	(evolveList[evolution[[a - 1]]];
+  	evolution[[a]] = z;)] 
+
+pictures[[1]] = 
+  Rasterize[
+   ListPlot3D[evolution[[1]], PlotRange -> {lowerBound, upperBound}, 
+    Mesh -> None]];
+
+For[a = 2, a <= NN, a++,
+ pictures[[a]] = 
+   Rasterize[
+    ListPlot3D[evolution[[a]], PlotRange -> {lowerBound, upperBound}, 
+     Mesh -> None]];]
+
+Animate[pictures[[q]], {q, 1, NN, 1}, AnimationRunning -> False]
